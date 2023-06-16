@@ -9,16 +9,16 @@ class Singleton {
   }
 }
 
+abstract class IndexedDB{
+  protected _databaseName: string;
+  protected _databaseVersion: number;
+  protected _objectStoreName : string;
+  protected _db: IDBDatabase | null;
 
-class PictureIndexedDB implements Singleton{
-  private _databaseName: string;
-  private _databaseVersion: number;
-  private _db: IDBDatabase | null;
-  private static _instance: PictureIndexedDB | null = null;
-
-  private constructor(databaseName: string, databaseVersion: number) {
+  protected constructor(databaseName: string, databaseVersion: number, objectStoreName: string) {
     this._databaseName = databaseName;
     this._databaseVersion = databaseVersion;
+    this._objectStoreName = objectStoreName
     this._db = null;
   }
 
@@ -39,33 +39,21 @@ class PictureIndexedDB implements Singleton{
 
       request.onupgradeneeded = (event: IDBVersionChangeEvent) => {
         this._db = (event.target as IDBOpenDBRequest).result as IDBDatabase;
-        const objectStore = this._db.createObjectStore("images", {
+        const objectStore = this._db.createObjectStore(this._objectStoreName, {
           keyPath: "id",
         });
         objectStore.createIndex("id", "id", { unique: true });
       };
     });
   }
+}
 
-  public removeImage(data: any): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const transaction: IDBTransaction = this._db!.transaction(
-        ["images"],
-        "readwrite"
-      );
-      const store: IDBObjectStore = transaction.objectStore("images");
-      const request: IDBRequest = store.add(data);
 
-      transaction.oncomplete = () => {
-        resolve();
-      };
+class PictureIndexedDB extends IndexedDB implements Singleton{
+  private static _instance: PictureIndexedDB | null = null;
 
-      request.onerror = (event: Event) => {
-        reject(
-          `Failed to add data: ${(event.target as IDBOpenDBRequest).error}`
-        );
-      };
-    });
+  private constructor(databaseName: string, databaseVersion: number, objectStoreName: string) {
+    super(databaseName, databaseVersion, objectStoreName)
   }
 
   public addImage(image: File): Promise<void> {
@@ -77,10 +65,10 @@ class PictureIndexedDB implements Singleton{
         const base64Image = event.target?.result as string;
 
         const transaction: IDBTransaction = this._db!.transaction(
-          ["images"],
+          [this._objectStoreName],
           "readwrite"
         );
-        const store: IDBObjectStore = transaction.objectStore("images");
+        const store: IDBObjectStore = transaction.objectStore(this._objectStoreName);
         const imageObject = { id: Date.now(), data: base64Image };
 
         const request: IDBRequest = store.add(imageObject);
@@ -107,11 +95,11 @@ class PictureIndexedDB implements Singleton{
   public getImages(): Promise<any[]> {
     return new Promise((resolve, reject) => {
       const transaction: IDBTransaction = this._db!.transaction(
-        ["images"],
+        [this._objectStoreName],
         "readonly"
       );
 
-      const store: IDBObjectStore = transaction.objectStore("images");
+      const store: IDBObjectStore = transaction.objectStore(this._objectStoreName);
       const request: IDBRequest = store.getAll();
 
       request.onsuccess = (event: Event) => {
@@ -128,13 +116,13 @@ class PictureIndexedDB implements Singleton{
     });
   }
 
-  public deleteData(id: number): Promise<void> {
+  public removeImage(id: number): Promise<void> {
     return new Promise((resolve, reject) => {
       const transaction: IDBTransaction = this._db!.transaction(
-        ["images"],
+        [this._objectStoreName],
         "readwrite"
       );
-      const store: IDBObjectStore = transaction.objectStore("images");
+      const store: IDBObjectStore = transaction.objectStore(this._objectStoreName);
       const request: IDBRequest = store.delete(id);
 
       transaction.oncomplete = () => {
@@ -149,11 +137,11 @@ class PictureIndexedDB implements Singleton{
     });
   }
 
-  public static getInstance(databaseName: string, databaseVersion: number) {
+  public static getInstance(databaseName: string, databaseVersion: number, objectStoreName: string) {
     if (this._instance) {
       return this._instance;
     } else {
-      return new PictureIndexedDB(databaseName, databaseVersion);
+      return new PictureIndexedDB(databaseName, databaseVersion, objectStoreName);
     }
   }
 }

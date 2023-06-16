@@ -4,7 +4,7 @@ const form = document.querySelector(".file-reader");
 const file = document.querySelector("input");
 
 const createDB = async () => {
-  const database = PictureIndexedDB.getInstance("PictureDB", 1);
+  const database = PictureIndexedDB.getInstance("PictureDB", 1, "music");
   await database.initialize();
   return database;
 };
@@ -20,7 +20,7 @@ const showImages = async () => {
     fragment.appendChild(imgTag);
   }
   imagesDiv?.appendChild(fragment);
-  (await database).deleteData(1686733930721);
+  (await database).removeImage(1686733930721);
 };
 
 const database = createDB();
